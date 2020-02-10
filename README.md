@@ -7,4 +7,4 @@ This project use a virtual workspace to share building artefact and speedup reco
 
 ## Licensing
 
-Like original and rust-lvé-book example the code is published under the `ISC` license. See the [LICENSE file](LICENSE.md) for more info.
+Like original C and rust-lv2-book examples, the code is published under the `ISC` license. See the [LICENSE file](LICENSE.md) for more info.

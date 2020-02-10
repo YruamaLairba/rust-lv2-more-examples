@@ -1,0 +1,12 @@
+[package]
+name = "worker"
+version = "0.1.0"
+authors = ["Yruama_Lairba <yruama_lairba@hotmail.com>"]
+edition = "2018"
+
+# Plugins are dynamic libraries. This setting tells cargo to export it this way. When using workspace, "cdylib" is required to have everthing linked statically inside the plugin binary.
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lv2-core = {  path = "../../rust-lv2/core"}

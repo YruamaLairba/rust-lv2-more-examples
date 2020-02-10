@@ -1,8 +1,8 @@
 use lv2_core::prelude::*;
 use lv2_sys::{
-    LV2_Handle, LV2_Worker_Respond_Function, LV2_Worker_Respond_Handle, LV2_Worker_Status,
-    LV2_Worker_Status_LV2_WORKER_ERR_NO_SPACE, LV2_Worker_Status_LV2_WORKER_ERR_UNKNOWN,
-    LV2_Worker_Status_LV2_WORKER_SUCCESS,
+    LV2_Handle, LV2_WORKER__interface, LV2_Worker_Interface, LV2_Worker_Respond_Function,
+    LV2_Worker_Respond_Handle, LV2_Worker_Status, LV2_Worker_Status_LV2_WORKER_ERR_NO_SPACE,
+    LV2_Worker_Status_LV2_WORKER_ERR_UNKNOWN, LV2_Worker_Status_LV2_WORKER_SUCCESS,
 };
 use std::os::raw::*; //get all commoent c_type
 
@@ -42,6 +42,19 @@ impl Plugin for EgWorker {
 
         for (in_frame, out_frame) in Iterator::zip(ports.input.iter(), ports.output.iter_mut()) {
             *out_frame = in_frame * coef;
+        }
+    }
+
+    fn extension_data(_uri: &Uri) -> Option<&'static dyn Any> {
+        static WORKER: LV2_Worker_Interface = LV2_Worker_Interface {
+            work: Some(work),
+            work_response: None,
+            end_run: None,
+        };
+        if _uri.to_bytes_with_nul()[..] == LV2_WORKER__interface[..] {
+            return Some(&WORKER);
+        } else {
+            return None;
         }
     }
 }

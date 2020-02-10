@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 lv2-core = {  path = "../../rust-lv2/core"}
+lv2-sys = {  path = "../../rust-lv2/sys"}

@@ -36,10 +36,18 @@ pub struct Features<'a> {
     schedule: Schedule<'a>,
 }
 
+#[repr(transparent)]
+struct WorkerSchedule {
+    internal: LV2_Worker_Schedule,
+}
+//lying on sync and send
+unsafe impl Sync for WorkerSchedule {}
+unsafe impl Send for WorkerSchedule {}
+
 #[repr(C)]
 struct EgWorker
 {
-    schedule_work: unsafe extern "C" fn(handle: lv2_sys::LV2_Worker_Schedule_Handle, size: u32, data: *const c_void) -> LV2_Worker_Status,
+    schedule: WorkerSchedule,
 }
 
 // URI identifier
@@ -56,15 +64,9 @@ impl Plugin for EgWorker {
         //    Some(x) => println!("Schedule feature {:?}",x),
         //    None => println!("No Schedule feature"),
         //}
-        let schedule_work = match features.schedule.internal.schedule_work {
-            Some(s_w) => s_w,
-            None => {
-                println!("Invalid schedule_work pointer");
-                return None;
-            }
-        };
+        let schedule_internal = features.schedule.internal;
         Some(Self {
-            schedule_work: schedule_work,
+            schedule: WorkerSchedule { internal: *schedule_internal},
         })
     }
 
@@ -74,7 +76,11 @@ impl Plugin for EgWorker {
 
     fn run(&mut self, ports: &mut Ports) {
         unsafe {
-            (self.schedule_work)((self as *mut Self) as *mut std::ffi::c_void, 0, std::ptr::null::<c_void> as *const std::ffi::c_void);
+            if let Some(schedule_work) = self.schedule.internal.schedule_work {
+                (schedule_work)(self.schedule.internal.handle, 0, std::ptr::null::<c_void>() as *const std::ffi::c_void);
+            } else {
+                println!("invalid schedule work pointer");
+            }
         }
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
@@ -104,6 +110,7 @@ impl Worker for EgWorker {
         println!("worker thread");
         return WorkerStatus::Success;
     }
+
 }
 
 lv2_descriptors!(EgWorker);

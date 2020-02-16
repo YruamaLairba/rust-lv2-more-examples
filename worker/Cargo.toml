@@ -11,3 +11,6 @@ crate-type = ["cdylib"]
 [dependencies]
 lv2-core = {  path = "../../rust-lv2/core"}
 lv2-sys = {  path = "../../rust-lv2/sys"}
+lv2-urid = {  path = "../../rust-lv2/urid"}
+lv2-worker = { path = "../../rust-lv2/worker"}
+

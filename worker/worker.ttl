@@ -7,6 +7,8 @@
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
+@prefix work:  <http://lv2plug.in/ns/ext/worker#> .
 
 # Plugin type. As this plugin doesn't do anything useful, it doesn't have
 # subtype
@@ -14,6 +16,8 @@
         a lv2:Plugin ;
 # Associated project
         lv2:project <https://github.com/YruamaLairba/rust-lv2-more-examples> ;
+        lv2:requiredFeature urid:map, work:schedule ;
+        lv2:extensionData work:interface ;
 # Plugin name
         doap:name "Worker example (rust-lv2)" ;
         doap:license <http://opensource.org/licenses/isc> ;

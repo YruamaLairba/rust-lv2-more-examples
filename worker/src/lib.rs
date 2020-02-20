@@ -102,15 +102,12 @@ impl Plugin for EgWorker {
 impl Worker for EgWorker {
     fn work(
         &mut self,
-        _response_function: LV2_Worker_Respond_Function,
-        _respond_handle: LV2_Worker_Respond_Handle,
-        _size: u32,
-        _data: *const c_void,
-    ) -> Result<(),WorkerError> {
-        if let Some(respond) = _response_function {
-            unsafe{ respond(_respond_handle, 0, std::ptr::null::<c_void>());}
-        }
+        response_handler: &ResponseHandler,
+        size: u32,
+        data: *const c_void,
+    ) -> Result<(), WorkerError> {
         println!("worker thread");
+        let _ = response_handler.respond(size, data);
         return Ok(());
     }
 

@@ -107,6 +107,9 @@ impl Worker for EgWorker {
         _size: u32,
         _data: *const c_void,
     ) -> Result<(),WorkerError> {
+        if let Some(respond) = _response_function {
+            unsafe{ respond(_respond_handle, 0, std::ptr::null::<c_void>());}
+        }
         println!("worker thread");
         return Ok(());
     }

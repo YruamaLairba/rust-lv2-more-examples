@@ -106,9 +106,14 @@ impl Worker for EgWorker {
         _respond_handle: LV2_Worker_Respond_Handle,
         _size: u32,
         _data: *const c_void,
-    ) -> WorkerStatus {
+    ) -> Result<(),WorkerError> {
         println!("worker thread");
-        return WorkerStatus::Success;
+        return Ok(());
+    }
+
+    fn work_response(&mut self, _size: u32, _body: *const c_void) -> Result<(),WorkerError> {
+        println!("work response");
+        return Ok(());
     }
 
 }

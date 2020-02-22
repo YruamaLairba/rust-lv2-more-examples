@@ -1,26 +1,8 @@
 use core::any::Any;
-use lv2_core::extension::ExtensionDescriptor;
 use lv2_core::feature::*;
 use lv2_core::prelude::*;
-use lv2_urid::prelude::*;
-use lv2_sys;
-use lv2_sys::{
-    LV2_Handle,
-    LV2_WORKER__interface,
-    LV2_Worker_Interface,
-    LV2_Worker_Respond_Function,
-    LV2_Worker_Respond_Handle,
-    LV2_Worker_Schedule,
-    LV2_Worker_Status,
-    LV2_Worker_Status_LV2_WORKER_ERR_NO_SPACE,
-    LV2_Worker_Status_LV2_WORKER_ERR_UNKNOWN,
-    LV2_Worker_Status_LV2_WORKER_SUCCESS,
-};
 use lv2_worker::*;
-use std::marker::PhantomData;
 use std::os::raw::*; //get all common c_type
-
-
 
 // see lv2_core::port::PortContainer for port type
 #[derive(PortContainer)]
@@ -32,21 +14,11 @@ struct Ports {
 
 #[derive(FeatureCollection)]
 pub struct Features<'a> {
-    map: Map<'a>,
     schedule: Schedule<'a>,
 }
 
-#[repr(transparent)]
-struct WorkerSchedule {
-    internal: LV2_Worker_Schedule,
-}
-//lying on sync and send
-unsafe impl Sync for WorkerSchedule {}
-unsafe impl Send for WorkerSchedule {}
-
 #[repr(C)]
-struct EgWorker<'a>
-{
+struct EgWorker<'a> {
     schedule: Schedule<'a>,
 }
 
@@ -65,9 +37,7 @@ impl Plugin for EgWorker<'static> {
         //    None => println!("No Schedule feature"),
         //}
         let schedule = features.schedule;
-        Some(Self {
-            schedule,
-        })
+        Some(Self { schedule })
     }
 
     fn activate(&mut self) {}
@@ -75,7 +45,9 @@ impl Plugin for EgWorker<'static> {
     fn deactivate(&mut self) {}
 
     fn run(&mut self, ports: &mut Ports) {
-        let _ = self.schedule.schedule_work(0, std::ptr::null::<c_void>() as *const std::ffi::c_void);
+        let _ = self
+            .schedule
+            .schedule_work(0, std::ptr::null::<c_void>() as *const std::ffi::c_void);
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
         } else {
@@ -105,11 +77,10 @@ impl Worker for EgWorker<'static> {
         return Ok(());
     }
 
-    fn work_response(&mut self, _size: u32, _body: *const c_void) -> Result<(),WorkerError> {
+    fn work_response(&mut self, _size: u32, _body: *const c_void) -> Result<(), WorkerError> {
         println!("work response");
         return Ok(());
     }
-
 }
 
 lv2_descriptors!(EgWorker<'static>);

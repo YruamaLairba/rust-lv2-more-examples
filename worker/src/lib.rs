@@ -45,17 +45,17 @@ unsafe impl Sync for WorkerSchedule {}
 unsafe impl Send for WorkerSchedule {}
 
 #[repr(C)]
-struct EgWorker
+struct EgWorker<'a>
 {
-    schedule: WorkerSchedule,
+    schedule: Schedule<'a>,
 }
 
 // URI identifier
-unsafe impl UriBound for EgWorker {
+unsafe impl<'a> UriBound for EgWorker<'a> {
     const URI: &'static [u8] = b"urn:rust-lv2-more-examples:eg-worker-rs\0";
 }
 
-impl Plugin for EgWorker {
+impl Plugin for EgWorker<'static> {
     type Ports = Ports;
     type Features = Features<'static>;
 
@@ -64,9 +64,9 @@ impl Plugin for EgWorker {
         //    Some(x) => println!("Schedule feature {:?}",x),
         //    None => println!("No Schedule feature"),
         //}
-        let schedule_internal = features.schedule.internal;
+        let schedule = features.schedule;
         Some(Self {
-            schedule: WorkerSchedule { internal: *schedule_internal},
+            schedule,
         })
     }
 
@@ -75,13 +75,7 @@ impl Plugin for EgWorker {
     fn deactivate(&mut self) {}
 
     fn run(&mut self, ports: &mut Ports) {
-        unsafe {
-            if let Some(schedule_work) = self.schedule.internal.schedule_work {
-                (schedule_work)(self.schedule.internal.handle, 0, std::ptr::null::<c_void>() as *const std::ffi::c_void);
-            } else {
-                println!("invalid schedule work pointer");
-            }
-        }
+        let _ = self.schedule.schedule_work(0, std::ptr::null::<c_void>() as *const std::ffi::c_void);
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
         } else {
@@ -99,7 +93,7 @@ impl Plugin for EgWorker {
 }
 
 // Actually implementing the extension.
-impl Worker for EgWorker {
+impl Worker for EgWorker<'static> {
     fn work(
         &mut self,
         response_handler: &ResponseHandler,
@@ -118,4 +112,4 @@ impl Worker for EgWorker {
 
 }
 
-lv2_descriptors!(EgWorker);
+lv2_descriptors!(EgWorker<'static>);

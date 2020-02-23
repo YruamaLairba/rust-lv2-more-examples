@@ -2,7 +2,6 @@ use core::any::Any;
 use lv2_core::feature::*;
 use lv2_core::prelude::*;
 use lv2_worker::*;
-use std::os::raw::*; //get all common c_type
 
 // see lv2_core::port::PortContainer for port type
 #[derive(PortContainer)]
@@ -67,18 +66,19 @@ impl Plugin for EgWorker<'static> {
 // Actually implementing the extension.
 impl Worker for EgWorker<'static> {
     type WorkData = u32;
+    type ResponseData = &'static str;
     fn work(
         &mut self,
         response_handler: &ResponseHandler,
         data: &u32,
     ) -> Result<(), WorkerError> {
         println!("worker thread: got {}", data);
-        let _ = response_handler.respond(0, std::ptr::null::<c_void>());
+        let _ = response_handler.respond::<Self>(&"hello");
         return Ok(());
     }
 
-    fn work_response(&mut self, _size: u32, _body: *const c_void) -> Result<(), WorkerError> {
-        println!("work response");
+    fn work_response(&mut self, data: &&str) -> Result<(), WorkerError> {
+        println!("work response: got {}", data);
         return Ok(());
     }
 }

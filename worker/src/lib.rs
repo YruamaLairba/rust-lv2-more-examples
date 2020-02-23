@@ -47,7 +47,7 @@ impl Plugin for EgWorker<'static> {
     fn run(&mut self, ports: &mut Ports) {
         let _ = self
             .schedule
-            .schedule_work(0, std::ptr::null::<c_void>() as *const std::ffi::c_void);
+            .schedule_work::<Self>(&32);
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
         } else {
@@ -66,14 +66,14 @@ impl Plugin for EgWorker<'static> {
 
 // Actually implementing the extension.
 impl Worker for EgWorker<'static> {
+    type WorkData = u32;
     fn work(
         &mut self,
         response_handler: &ResponseHandler,
-        size: u32,
-        data: *const c_void,
+        data: &u32,
     ) -> Result<(), WorkerError> {
-        println!("worker thread");
-        let _ = response_handler.respond(size, data);
+        println!("worker thread: got {}", data);
+        let _ = response_handler.respond(0, std::ptr::null::<c_void>());
         return Ok(());
     }
 

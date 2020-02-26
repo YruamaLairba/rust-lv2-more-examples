@@ -44,9 +44,10 @@ impl Plugin for EgWorker<'static> {
     fn deactivate(&mut self) {}
 
     fn run(&mut self, ports: &mut Ports) {
+        let work = 32;
         let _ = self
             .schedule
-            .schedule_work::<Self>(&32);
+            .schedule_work::<Self>(work);
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
         } else {
@@ -65,20 +66,20 @@ impl Plugin for EgWorker<'static> {
 
 // Actually implementing the extension.
 impl Worker for EgWorker<'static> {
-    type WorkData = u32;
-    type ResponseData = &'static str;
+    type WorkData = u8;
+    type ResponseData = Vec<&'static str>;
     fn work(
         &mut self,
         response_handler: &ResponseHandler,
-        data: &u32,
+        data: Self::WorkData,
     ) -> Result<(), WorkerError> {
-        println!("worker thread: got {}", data);
-        let _ = response_handler.respond::<Self>(&"hello");
+        println!("worker thread: {:?}", data);
+        let _ = response_handler.respond::<Self>(vec![&"hello",&" ",&"world"]);
         return Ok(());
     }
 
-    fn work_response(&mut self, data: &&str) -> Result<(), WorkerError> {
-        println!("work response: got {}", data);
+    fn work_response(&mut self, data: Self::ResponseData) -> Result<(), WorkerError> {
+        println!("work response: {:?}",data);
         return Ok(());
     }
 }

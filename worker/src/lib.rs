@@ -13,12 +13,12 @@ struct Ports {
 
 #[derive(FeatureCollection)]
 pub struct Features<'a> {
-    schedule: Schedule<'a>,
+    schedule: Schedule<'a, EgWorker<'static>>,
 }
 
 #[repr(C)]
 struct EgWorker<'a> {
-    schedule: Schedule<'a>,
+    schedule: Schedule<'a,EgWorker<'static>>,
 }
 
 // URI identifier
@@ -47,7 +47,7 @@ impl Plugin for EgWorker<'static> {
         let work = 32;
         let _ = self
             .schedule
-            .schedule_work::<Self>(work);
+            .schedule_work(work);
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
         } else {
@@ -70,16 +70,21 @@ impl Worker for EgWorker<'static> {
     type ResponseData = Vec<&'static str>;
     fn work(
         &mut self,
-        response_handler: &ResponseHandler,
+        response_handler: &ResponseHandler<Self>,
         data: Self::WorkData,
     ) -> Result<(), WorkerError> {
         println!("worker thread: {:?}", data);
-        let _ = response_handler.respond::<Self>(vec![&"hello",&" ",&"world"]);
+        let _ = response_handler.respond(vec![&"hello",&" ",&"world"]);
         return Ok(());
     }
 
     fn work_response(&mut self, data: Self::ResponseData) -> Result<(), WorkerError> {
         println!("work response: {:?}",data);
+        return Ok(());
+    }
+
+    fn end_run(&mut self)-> Result<(), WorkerError> {
+        println!("end run");
         return Ok(());
     }
 }

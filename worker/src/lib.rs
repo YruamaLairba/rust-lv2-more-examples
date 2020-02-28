@@ -13,30 +13,26 @@ struct Ports {
 
 #[derive(FeatureCollection)]
 pub struct Features<'a> {
-    schedule: Schedule<'a, EgWorker<'static>>,
+    schedule: Schedule<'a>,
 }
 
 #[repr(C)]
-struct EgWorker<'a> {
-    schedule: Schedule<'a,EgWorker<'static>>,
+struct EgWorker {
+    schedule_handler: ScheduleHandler<Self>,
 }
 
 // URI identifier
-unsafe impl<'a> UriBound for EgWorker<'a> {
+unsafe impl UriBound for EgWorker {
     const URI: &'static [u8] = b"urn:rust-lv2-more-examples:eg-worker-rs\0";
 }
 
-impl Plugin for EgWorker<'static> {
+impl Plugin for EgWorker {
     type Ports = Ports;
     type Features = Features<'static>;
 
     fn new(_plugin_info: &PluginInfo, features: Features<'static>) -> Option<Self> {
-        //match features.map.map_type::<Schedule>() {
-        //    Some(x) => println!("Schedule feature {:?}",x),
-        //    None => println!("No Schedule feature"),
-        //}
-        let schedule = features.schedule;
-        Some(Self { schedule })
+        let schedule_handler = ScheduleHandler::from(features.schedule);
+        Some(Self { schedule_handler })
     }
 
     fn activate(&mut self) {}
@@ -44,9 +40,9 @@ impl Plugin for EgWorker<'static> {
     fn deactivate(&mut self) {}
 
     fn run(&mut self, ports: &mut Ports) {
-        let work = 32;
+        let work = String::from("This is data to work on");
         let _ = self
-            .schedule
+            .schedule_handler
             .schedule_work(work);
         let coef = if *(ports.gain) > -90.0 {
             10.0_f32.powf(*(ports.gain) * 0.05)
@@ -65,8 +61,9 @@ impl Plugin for EgWorker<'static> {
 }
 
 // Actually implementing the extension.
-impl Worker for EgWorker<'static> {
-    type WorkData = u8;
+impl Worker for EgWorker {
+    // be carefull, using associated type that allocate breaks HardRtCapability most of the time
+    type WorkData = String;
     type ResponseData = Vec<&'static str>;
     fn work(
         &mut self,
@@ -74,7 +71,7 @@ impl Worker for EgWorker<'static> {
         data: Self::WorkData,
     ) -> Result<(), WorkerError> {
         println!("worker thread: {:?}", data);
-        let _ = response_handler.respond(vec![&"hello",&" ",&"world"]);
+        let _ = response_handler.respond(vec![&"This",&"is",&"the",&"worker",&"result"]);
         return Ok(());
     }
 
@@ -89,4 +86,4 @@ impl Worker for EgWorker<'static> {
     }
 }
 
-lv2_descriptors!(EgWorker<'static>);
+lv2_descriptors!(EgWorker);

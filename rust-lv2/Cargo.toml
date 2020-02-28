@@ -1,0 +1,32 @@
+[package]
+name = "lv2"
+version = "0.1.0"
+authors = ["Jan-Oliver 'Janonard' Opdenhövel <jan.opdenhoevel@protonmail.com>", "Adrien Prokopowicz <adrien.prokopowicz@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+lv2-atom = { path = "atom" }
+lv2-core = { path = "core" }
+lv2-units = { path = "units" }
+lv2-urid = { path = "urid" }
+lv2-midi = { path = "midi" }
+lv2-worker = { path = "worker" }
+
+[workspace]
+members = [
+    "sys",
+    "atom",
+    "core",
+    "core/derive",
+    "units",
+    "urid",
+    "urid/derive",
+    "midi",
+    "worker",
+]
+
+[features]
+default = []
+host = ["lv2-core/host", "lv2-units/host", "lv2-urid/host", "lv2-atom/host"]
+wmidi = ["lv2-midi/wmidi"]

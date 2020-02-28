@@ -1,0 +1,15 @@
+[package]
+name = "lv2-urid"
+version = "0.1.0"
+authors = ["Jan-Oliver 'Janonard' Opdenhövel <jan.opdenhoevel@protonmail.com>", "Adrien Prokopowicz <adrien.prokopowicz@gmail.com>"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+lv2-core = { path = "../core" }
+lv2-sys = { path = "../sys" }
+lv2-urid-derive = { path = "derive" }
+
+[features]
+default = []
+host = ["lv2-core/host"]

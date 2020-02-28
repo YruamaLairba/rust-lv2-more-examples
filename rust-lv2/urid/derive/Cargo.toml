@@ -1,0 +1,12 @@
+[package]
+name = "lv2-urid-derive"
+version = "0.1.0"
+authors = ["Jan-Oliver 'Janonard' Opdenhövel <jan.opdenhoevel@protonmail.com>", "Adrien Prokopowicz <adrien.prokopowicz@gmail.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0.5"
+quote = "1.0.2"

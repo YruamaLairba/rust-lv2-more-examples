@@ -1,5 +1,6 @@
 [workspace]
 
 members = [
+    "eg-worker-rs",
 ]
 

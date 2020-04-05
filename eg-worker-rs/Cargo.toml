@@ -1,0 +1,15 @@
+[package]
+name = "eg-worker-rs"
+version = "0.1.0"
+authors = ["Yruama_Lairba <yruama_lairba@hotmail.com>"]
+edition = "2018"
+
+# Plugins are dynamic libraries. This setting tells cargo to export it this way. When using workspace, "cdylib" is required to have everthing linked statically inside the plugin binary.
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lv2-core = "2.*"
+lv2-urid = "2.*"
+lv2-worker = "0.1.*"
+urid = "0.1.*"

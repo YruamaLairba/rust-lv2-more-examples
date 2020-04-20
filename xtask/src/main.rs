@@ -1,6 +1,5 @@
 #![allow(clippy::try_err)]
 use std::env;
-use std::ffi::OsStr;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -15,12 +14,12 @@ fn main() {
 }
 
 fn try_main() -> Result<(), DynError> {
-    let task = env::args().nth(1);
-    let mut args = env::args_os();
-    args.nth(1);
+    let args = env::args().collect::<Vec<_>>();
+    let task = args.get(1);
+    let args = args.get(2..).unwrap_or_default();
     if let Some(task) = task {
-        match task.as_str() {
-            "build" => build(args)?,
+        match task.as_ref() {
+            "build" => build(&args)?,
             "debug" => debug()?,
             _ => print_help(),
         }
@@ -39,14 +38,10 @@ build            build lv2 bundle(s)
     )
 }
 
-fn build<I, S>(args: I) -> Result<(), DynError>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
+fn build(args: &[String]) -> Result<(), DynError>
 {
-    let mut args = args.into_iter();
-    for e in args.by_ref() {
-        print!("{:?} ", e.as_ref().to_string_lossy());
+    for e in args {
+        print!("{:?},", e);
     }
     println!();
     cargo("build", args)?;
@@ -82,11 +77,7 @@ fn debug() -> Result<(), DynError> {
     Ok(())
 }
 
-fn cargo<C, I, S>(cmd: C, args: I) -> Result<(), DynError>
-where
-    C: AsRef<OsStr>,
-    I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
+fn cargo(cmd: &str, args : &[String]) -> Result<(), DynError>
 {
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let status = Command::new(cargo)

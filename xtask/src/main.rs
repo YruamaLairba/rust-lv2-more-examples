@@ -1,5 +1,11 @@
 #![allow(clippy::try_err)]
 use std::env;
+use std::fs;
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::BufWriter;
+use std::io::Write;
 use std::iter::Iterator;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -38,14 +44,36 @@ build            build lv2 bundle(s)
     )
 }
 
-fn build(args: &[String]) -> Result<(), DynError>
-{
-    for e in args {
-        print!("{:?},", e);
+fn build(args: &[String]) -> Result<(), DynError> {
+    //cargo("build", args)?;
+    let mut args_iter = args.iter();
+    while let Some(e) = args_iter.next() {
+        if e == "-p" || e == "--package" {
+            if let Some(p) = args_iter.next() {
+                print!("{:?},", p);
+                template_build(project_root().join(p))?;
+            }
+        }
     }
     println!();
-    cargo("build", args)?;
 
+    Ok(())
+}
+
+fn template_build<P: AsRef<Path>>(project_path: P) -> Result<(), DynError> {
+    let entries = fs::read_dir(&project_path)?;
+    for entry in entries {
+        let path = entry?.path();
+        if path.is_file() && path.extension() == Some("in".as_ref()) {
+        println!("{:?}",path);
+            let out_path = project_root()
+                .join("target/lv2/")
+                .join(project_path.as_ref().file_stem().unwrap())
+                .join(path.file_stem().unwrap());
+        println!("{:?}",out_path);
+            subst_file(path, &out_path, &[("@LIB_NAME@", "libeg_worker_rs.so")])?;
+        }
+    }
     Ok(())
 }
 
@@ -77,8 +105,7 @@ fn debug() -> Result<(), DynError> {
     Ok(())
 }
 
-fn cargo(cmd: &str, args : &[String]) -> Result<(), DynError>
-{
+fn cargo(cmd: &str, args: &[String]) -> Result<(), DynError> {
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let status = Command::new(cargo)
         .current_dir(project_root())
@@ -98,4 +125,23 @@ fn project_root() -> PathBuf {
         .nth(1)
         .unwrap()
         .to_path_buf()
+}
+
+fn subst_file<T, O>(template: T, output: O, subs: &[(&str, &str)]) -> Result<(), DynError>
+where
+    T: AsRef<Path>,
+    O: AsRef<Path>,
+{
+    fs::create_dir_all(output.as_ref().parent().unwrap()).unwrap();
+    let mut template = BufReader::new(File::open(template).unwrap());
+    let mut output = BufWriter::new(File::create(output).unwrap());
+    let mut buf = String::new();
+    while template.read_line(&mut buf).unwrap() != 0 {
+        for (token, value) in subs {
+            buf = buf.replace(token, value);
+        }
+        write!(output, "{}", buf).unwrap();
+        buf.clear();
+    }
+    Ok(())
 }

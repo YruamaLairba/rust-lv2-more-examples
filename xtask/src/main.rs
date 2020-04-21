@@ -51,7 +51,7 @@ fn build(args: &[String]) -> Result<(), DynError> {
         if e == "-p" || e == "--package" {
             if let Some(p) = args_iter.next() {
                 print!("{:?},", p);
-                template_build(project_root().join(p))?;
+                template_build(workspace_root().join(p))?;
             }
         }
     }
@@ -66,7 +66,7 @@ fn template_build<P: AsRef<Path>>(project_path: P) -> Result<(), DynError> {
         let path = entry?.path();
         if path.is_file() && path.extension() == Some("in".as_ref()) {
         println!("{:?}",path);
-            let out_path = project_root()
+            let out_path = workspace_root()
                 .join("target/lv2/")
                 .join(project_path.as_ref().file_stem().unwrap())
                 .join(path.file_stem().unwrap());
@@ -108,7 +108,7 @@ fn debug() -> Result<(), DynError> {
 fn cargo(cmd: &str, args: &[String]) -> Result<(), DynError> {
     let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
     let status = Command::new(cargo)
-        .current_dir(project_root())
+        .current_dir(workspace_root())
         .arg(cmd)
         .args(args)
         .status()?;
@@ -119,7 +119,7 @@ fn cargo(cmd: &str, args: &[String]) -> Result<(), DynError> {
     Ok(())
 }
 
-fn project_root() -> PathBuf {
+fn workspace_root() -> PathBuf {
     Path::new(&env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(1)

@@ -12,6 +12,56 @@ use std::process::Command;
 
 type DynError = Box<dyn std::error::Error>;
 
+struct Package {
+    name: String,
+    dir: String,                 //relative from the workspace root
+    template_files: Vec<String>, //path relative to package dir
+    template_subs: Vec<(String, String)>,
+}
+
+impl Package {
+    fn default(name: &str) -> Self {
+        Self {
+            name: String::from(name),
+            dir: String::from(name),
+            template_files: vec![],
+            template_subs: vec![],
+        }
+    }
+}
+
+//const eg_worker_rs: Package = Package {
+//    name: "eg-worker-rs",
+//    dir: "eg-worker-rs",
+//    template_files: &["worker.ttl.in","manifest.ttl.in"],
+//    template_subs:&[("@LIB_NAME@","eg-worker-rs")],
+//};
+
+fn package_list() -> Vec<Package> {
+    let wr = workspace_root();
+    let (prefix, ext) = if cfg!(windows) {
+        ("", ".dll")
+    } else if cfg!(macos) {
+        ("lib", ".dylib")
+    } else if cfg!(unix) {
+        ("lib", ".so")
+    } else {
+        panic!("Couldn't determine shared library prefix and suffix for that target");
+    };
+    let mut eg_worker_rs = Package::default("eg-worker-rs");
+    eg_worker_rs
+        .template_files
+        .push(String::from("worker.ttl.in"));
+    eg_worker_rs
+        .template_files
+        .push(String::from("manifest.ttl.in"));
+    eg_worker_rs.template_subs.push((
+        String::from("@LIB_FILE_NAME@"),
+        format!("{}{}{}", prefix, "eg_worker_rs", ext),
+    ));
+    vec![eg_worker_rs]
+}
+
 fn main() {
     if let Err(e) = try_main() {
         eprintln!("{}", e);
@@ -46,31 +96,86 @@ build            build lv2 bundle(s)
 
 fn build(args: &[String]) -> Result<(), DynError> {
     //cargo("build", args)?;
+    let mut target = "";
+    let mut target_dir = "target";
+    let mut profile_dir = "debug";
+    //cargo option other than packages
+    let mut build_opt = Vec::<String>::new();
+    let mut packages = Vec::<String>::new();
     let mut args_iter = args.iter();
     while let Some(e) = args_iter.next() {
-        if e == "-p" || e == "--package" {
-            if let Some(p) = args_iter.next() {
-                print!("{:?},", p);
-                template_build(workspace_root().join(p))?;
+        match e.as_ref() {
+            "-p" | "--package" => {
+                if let Some(p) = args_iter.next() {
+                    packages.push(p.clone());
+                }
             }
+            "--release" => {
+                profile_dir = "release";
+                build_opt.push(e.clone());
+            }
+            "--target" => {
+                build_opt.push(e.clone());
+                if let Some(tg) = args_iter.next() {
+                    target = &tg;
+                    build_opt.push(tg.clone());
+                }
+            }
+            _ => (),
         }
     }
+    let build_path = PathBuf::new()
+        .join(workspace_root())
+        .join(target_dir)
+        .join(target)
+        .join(profile_dir);
+    println!("target: {}", target);
+    println!("target_dir: {}", target_dir);
+    println!("profile_dir: {}", profile_dir);
+    println!("build_path: {}", build_path.to_string_lossy());
+    println!("{:?}", packages);
+    if packages.is_empty() {
+        for p in package_list() {
+            build_template(&p,&build_path);
+        }
+    }
+
     println!();
 
     Ok(())
 }
 
-fn template_build<P: AsRef<Path>>(project_path: P) -> Result<(), DynError> {
+fn build_template<B: AsRef<Path>>(project: &Package, build_path :B) {
+    let project_dir = workspace_root().join(&project.dir);
+    let out_dir = build_path
+        .as_ref()
+        .join("lv2")
+        .join(&project.dir);
+    for file in &project.template_files {
+        let file_path = project_dir.join(&file);
+        let file_stem = AsRef::<Path>::as_ref(&file).file_stem().unwrap();
+        let out_path = out_dir.join(file_stem);
+        subs_file(file_path, out_path, &project.template_subs).unwrap();
+    }
+}
+
+
+fn template_build<P, B>(project_path: P, build_path: B) -> Result<(), DynError>
+where
+    P: AsRef<Path>,
+    B: AsRef<Path>,
+{
     let entries = fs::read_dir(&project_path)?;
     for entry in entries {
         let path = entry?.path();
         if path.is_file() && path.extension() == Some("in".as_ref()) {
-        println!("{:?}",path);
-            let out_path = workspace_root()
+            println!("{:?}", path);
+            let out_path = build_path
+                .as_ref()
                 .join("target/lv2/")
                 .join(project_path.as_ref().file_stem().unwrap())
                 .join(path.file_stem().unwrap());
-        println!("{:?}",out_path);
+            println!("{:?}", out_path);
             subst_file(path, &out_path, &[("@LIB_NAME@", "libeg_worker_rs.so")])?;
         }
     }
@@ -125,6 +230,25 @@ fn workspace_root() -> PathBuf {
         .nth(1)
         .unwrap()
         .to_path_buf()
+}
+
+fn subs_file<T, O>(template: T, output: O, subs: &[(String, String)]) -> Result<(), DynError>
+where
+    T: AsRef<Path>,
+    O: AsRef<Path>,
+{
+    fs::create_dir_all(output.as_ref().parent().unwrap()).unwrap();
+    let mut template = BufReader::new(File::open(template).unwrap());
+    let mut output = BufWriter::new(File::create(output).unwrap());
+    let mut buf = String::new();
+    while template.read_line(&mut buf).unwrap() != 0 {
+        for (token, value) in subs {
+            buf = buf.replace(token, value);
+        }
+        write!(output, "{}", buf).unwrap();
+        buf.clear();
+    }
+    Ok(())
 }
 
 fn subst_file<T, O>(template: T, output: O, subs: &[(&str, &str)]) -> Result<(), DynError>

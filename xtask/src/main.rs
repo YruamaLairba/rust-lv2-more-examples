@@ -12,6 +12,75 @@ use std::process::Command;
 
 type DynError = Box<dyn std::error::Error>;
 
+struct Config {
+    subcommand: Option<String>,
+    target: Option<String>,
+    release: bool,
+    packages: Vec<String>,
+}
+
+impl Config {
+    fn _new() -> Self {
+        Self {
+            subcommand: None,
+            target: None,
+            release: false,
+            packages: vec![],
+        }
+    }
+
+    //build config from environment variables
+    fn _vars(mut self) -> Self {
+        //let vars = env::vars();
+        //for (key, value) in vars {
+        //    match key {}
+        //}
+        self
+    }
+
+    fn _arg_package(&mut self, p: Option<String>) -> Result<(), DynError> {
+        if let Some(p) = p {
+            self.packages.push(p);
+        } else {
+            return Err("The argument '--package' requires a value".into());
+        }
+        Ok(())
+    }
+
+    fn _arg_target(&mut self, tg: Option<String>) -> Result<(), DynError> {
+        if self.target.is_some() {
+            return Err("The argument '--target' was provided more than once".into());
+        }
+        if tg.is_some() {
+            self.target = tg;
+        } else {
+            return Err("The argument '--target' require a value".into());
+        }
+        Ok(())
+    }
+
+    //build config from argument passed to app
+    fn _args(mut self) -> Result<Self, DynError> {
+        let mut args = env::args();
+        self.subcommand = args.nth(1) ;
+        while let Some(arg) = args.next() {
+                match arg.as_ref() {
+                    "-p" | "--package" => self._arg_package(args.next())?,
+                    "--release" => self.release = true,
+                    "--target" => self._arg_target(args.next())?,
+                    _ => return Err(format!("Unexptected argument: '{}'",arg).into())
+                }
+        }
+        Ok(self)
+    }
+    //build config from environment variable and passed argument
+    fn from_env() -> Result<Self, DynError> {
+        Config::_new()._vars()._args()
+    }
+}
+
+
+
 struct Package {
     name: String,
     dir: String,                 //relative from the workspace root
@@ -70,6 +139,7 @@ fn main() {
 }
 
 fn try_main() -> Result<(), DynError> {
+    let conf = Config::from_env()?;
     let args = env::args().collect::<Vec<_>>();
     let task = args.get(1);
     let args = args.get(2..).unwrap_or_default();
@@ -136,7 +206,7 @@ fn build(args: &[String]) -> Result<(), DynError> {
     println!("{:?}", packages);
     if packages.is_empty() {
         for p in package_list() {
-            build_template(&p,&build_path);
+            build_template(&p, &build_path);
         }
     }
 
@@ -145,12 +215,9 @@ fn build(args: &[String]) -> Result<(), DynError> {
     Ok(())
 }
 
-fn build_template<B: AsRef<Path>>(project: &Package, build_path :B) {
+fn build_template<B: AsRef<Path>>(project: &Package, build_path: B) {
     let project_dir = workspace_root().join(&project.dir);
-    let out_dir = build_path
-        .as_ref()
-        .join("lv2")
-        .join(&project.dir);
+    let out_dir = build_path.as_ref().join("lv2").join(&project.dir);
     for file in &project.template_files {
         let file_path = project_dir.join(&file);
         let file_stem = AsRef::<Path>::as_ref(&file).file_stem().unwrap();
@@ -158,7 +225,6 @@ fn build_template<B: AsRef<Path>>(project: &Package, build_path :B) {
         subs_file(file_path, out_path, &project.template_subs).unwrap();
     }
 }
-
 
 fn template_build<P, B>(project_path: P, build_path: B) -> Result<(), DynError>
 where

@@ -42,12 +42,12 @@ impl Config {
     }
 
     //build config from environment variables
-    fn _vars(mut self) -> Self {
+    fn _vars(mut self) -> Result<Self, DynError> {
         //let vars = env::vars();
         //for (key, value) in vars {
         //    match key {}
         //}
-        self
+        Ok(self)
     }
 
     fn _arg_package(&mut self, p: Option<String>) -> Result<(), DynError> {
@@ -100,12 +100,12 @@ impl Config {
     }
     //build config from environment variable and passed argument
     fn from_env() -> Result<Self, DynError> {
-        Config::_new()._vars()._args()
+        Ok(Config::_new()._vars()?._args()?)
     }
 
     fn build_dir(&self) -> PathBuf {
         let target_dir = self.target_dir.as_deref().unwrap_or_default();
-        let target = self.target.as_deref().unwrap_or_default();
+        let target = self.target.as_deref().unwrap_or("target");
         let profile_dir = if self.release { "release" } else { "debug" };
         workspace_root()
             .join(target_dir)
@@ -119,6 +119,29 @@ impl Config {
         } else {
             self.packages.clone()
         }
+    }
+
+    fn lib_filename(&self, project_name: &str) -> Result<String, DynError> {
+        let (prefix, suffix) = if let Some(tg) = self.target.as_deref() {
+            if tg.contains("apple") {
+                ("lib", ".dylib")
+            } else if tg.contains("windows") {
+                ("", ".dll")
+            } else {
+                ("lib", ".so")
+            }
+        //if no target provided, use xtask target information wich are host information
+        } else if cfg!(target_vendor = "apple") {
+            ("lib", ".dylib")
+        } else if cfg!(target_os = "windows") {
+            ("", ".dll")
+        } else {
+            ("lib", ".so")
+        };
+
+        let base_name = project_name.replace("-", "_");
+        dbg!([prefix, &base_name, suffix].concat());
+        Ok([prefix, &base_name, suffix].concat())
     }
 }
 
@@ -219,12 +242,23 @@ fn build(conf: &mut Config) -> Result<(), DynError> {
     println!("{:?}", cargo_args);
 
     cargo("build", &cargo_args)?;
-    for p in package_list() {
-        build_template(&p, &conf.build_dir());
-    }
+    build_templates(conf)?;
 
     println!();
 
+    Ok(())
+}
+
+fn build_templates(conf: &mut Config) -> Result<(), DynError> {
+    for p in conf.package_list() {
+        let project_dir: &Path = &p.as_ref();
+        let out_dir = conf.build_dir().join("lv2").join(&project_dir);
+        let manifest_in_path = workspace_root().join(project_dir).join("manifest.ttl.in");
+        dbg!(&out_dir);
+        let manifest_out_path = out_dir.join("manifest.ttl");
+        let sub = (String::from("@LIB_NAME@"), conf.lib_filename(&p)?);
+        subs(&manifest_in_path, &manifest_out_path, &[sub])?;
+    }
     Ok(())
 }
 
@@ -237,6 +271,23 @@ fn build_template(project: &Package, build_dir: &Path) {
         let out_path = out_dir.join(file_stem);
         subs_file(file_path, out_path, &project.template_subs).unwrap();
     }
+}
+
+fn subs(template: &Path, output: &Path, subs: &[(String, String)]) -> Result<(), DynError> {
+    dbg!(template);
+    dbg!(output);
+    fs::create_dir_all(output.parent().unwrap()).unwrap();
+    let mut template = BufReader::new(File::open(template).unwrap());
+    let mut output = BufWriter::new(File::create(output).unwrap());
+    let mut buf = String::new();
+    while template.read_line(&mut buf).unwrap() != 0 {
+        for (token, value) in subs {
+            buf = buf.replace(token, value);
+        }
+        write!(output, "{}", buf).unwrap();
+        buf.clear();
+    }
+    Ok(())
 }
 
 fn template_build<P, B>(project_path: P, build_path: B) -> Result<(), DynError>

@@ -12,9 +12,20 @@ use std::process::Command;
 
 type DynError = Box<dyn std::error::Error>;
 
+const PACKAGE_LIST: &[&str] = &["eg-worker-rs"];
+
+fn packages_list() -> Vec<String> {
+    let mut vec = Vec::with_capacity(PACKAGE_LIST.len());
+    for p in PACKAGE_LIST {
+        vec.push(String::from(*p));
+    }
+    vec
+}
+
 struct Config {
     subcommand: Option<String>,
-    target: Option<String>,
+    target: Option<String>,     // target-triple
+    target_dir: Option<String>, // directory for all generated artifact
     release: bool,
     packages: Vec<String>,
 }
@@ -24,6 +35,7 @@ impl Config {
         Self {
             subcommand: None,
             target: None,
+            target_dir: None,
             release: false,
             packages: vec![],
         }
@@ -59,17 +71,30 @@ impl Config {
         Ok(())
     }
 
+    fn _arg_target_dir(&mut self, tg: Option<String>) -> Result<(), DynError> {
+        if self.target_dir.is_some() {
+            return Err("The argument '--target-dir' was provided more than once".into());
+        }
+        if tg.is_some() {
+            self.target_dir = tg;
+        } else {
+            return Err("The argument '--target-dir' require a value".into());
+        }
+        Ok(())
+    }
+
     //build config from argument passed to app
     fn _args(mut self) -> Result<Self, DynError> {
         let mut args = env::args();
-        self.subcommand = args.nth(1) ;
+        self.subcommand = args.nth(1);
         while let Some(arg) = args.next() {
-                match arg.as_ref() {
-                    "-p" | "--package" => self._arg_package(args.next())?,
-                    "--release" => self.release = true,
-                    "--target" => self._arg_target(args.next())?,
-                    _ => return Err(format!("Unexptected argument: '{}'",arg).into())
-                }
+            match arg.as_ref() {
+                "-p" | "--package" => self._arg_package(args.next())?,
+                "--release" => self.release = true,
+                "--target" => self._arg_target(args.next())?,
+                "--target-dir" => self._arg_target_dir(args.next())?,
+                _ => return Err(format!("Unexptected argument: '{}'", arg).into()),
+            }
         }
         Ok(self)
     }
@@ -77,9 +102,25 @@ impl Config {
     fn from_env() -> Result<Self, DynError> {
         Config::_new()._vars()._args()
     }
+
+    fn build_dir(&self) -> PathBuf {
+        let target_dir = self.target_dir.as_deref().unwrap_or_default();
+        let target = self.target.as_deref().unwrap_or_default();
+        let profile_dir = if self.release { "release" } else { "debug" };
+        workspace_root()
+            .join(target_dir)
+            .join(target)
+            .join(profile_dir)
+    }
+
+    fn package_list(&self) -> Vec<String> {
+        if self.packages.is_empty() {
+            packages_list()
+        } else {
+            self.packages.clone()
+        }
+    }
 }
-
-
 
 struct Package {
     name: String,
@@ -139,14 +180,11 @@ fn main() {
 }
 
 fn try_main() -> Result<(), DynError> {
-    let conf = Config::from_env()?;
-    let args = env::args().collect::<Vec<_>>();
-    let task = args.get(1);
-    let args = args.get(2..).unwrap_or_default();
-    if let Some(task) = task {
+    let mut conf = Config::from_env()?;
+    if let Some(task) = &conf.subcommand {
         match task.as_ref() {
-            "build" => build(&args)?,
-            "debug" => debug()?,
+            "build" => build(&mut conf)?,
+            "debug" => debug(&mut conf)?,
             _ => print_help(),
         }
     } else {
@@ -164,50 +202,25 @@ build            build lv2 bundle(s)
     )
 }
 
-fn build(args: &[String]) -> Result<(), DynError> {
-    //cargo("build", args)?;
-    let mut target = "";
-    let mut target_dir = "target";
-    let mut profile_dir = "debug";
-    //cargo option other than packages
-    let mut build_opt = Vec::<String>::new();
-    let mut packages = Vec::<String>::new();
-    let mut args_iter = args.iter();
-    while let Some(e) = args_iter.next() {
-        match e.as_ref() {
-            "-p" | "--package" => {
-                if let Some(p) = args_iter.next() {
-                    packages.push(p.clone());
-                }
-            }
-            "--release" => {
-                profile_dir = "release";
-                build_opt.push(e.clone());
-            }
-            "--target" => {
-                build_opt.push(e.clone());
-                if let Some(tg) = args_iter.next() {
-                    target = &tg;
-                    build_opt.push(tg.clone());
-                }
-            }
-            _ => (),
-        }
+fn build(conf: &mut Config) -> Result<(), DynError> {
+    let mut cargo_args = Vec::<String>::new();
+    if let Some(target) = conf.target.as_deref() {
+        cargo_args.push(String::from("--target"));
+        cargo_args.push(String::from(target));
     }
-    let build_path = PathBuf::new()
-        .join(workspace_root())
-        .join(target_dir)
-        .join(target)
-        .join(profile_dir);
-    println!("target: {}", target);
-    println!("target_dir: {}", target_dir);
-    println!("profile_dir: {}", profile_dir);
-    println!("build_path: {}", build_path.to_string_lossy());
-    println!("{:?}", packages);
-    if packages.is_empty() {
-        for p in package_list() {
-            build_template(&p, &build_path);
-        }
+    if let Some(target_dir) = conf.target_dir.as_deref() {
+        cargo_args.push(String::from("--target-dir"));
+        cargo_args.push(String::from(target_dir));
+    }
+    for p in conf.package_list() {
+        cargo_args.push(String::from("-p"));
+        cargo_args.push(p);
+    }
+    println!("{:?}", cargo_args);
+
+    cargo("build", &cargo_args)?;
+    for p in package_list() {
+        build_template(&p, &conf.build_dir());
     }
 
     println!();
@@ -215,9 +228,9 @@ fn build(args: &[String]) -> Result<(), DynError> {
     Ok(())
 }
 
-fn build_template<B: AsRef<Path>>(project: &Package, build_path: B) {
+fn build_template(project: &Package, build_dir: &Path) {
     let project_dir = workspace_root().join(&project.dir);
-    let out_dir = build_path.as_ref().join("lv2").join(&project.dir);
+    let out_dir = build_dir.join("lv2").join(&project.dir);
     for file in &project.template_files {
         let file_path = project_dir.join(&file);
         let file_stem = AsRef::<Path>::as_ref(&file).file_stem().unwrap();
@@ -257,7 +270,7 @@ macro_rules! print_env {
     }};
 }
 
-fn debug() -> Result<(), DynError> {
+fn debug(_conf: &mut Config) -> Result<(), DynError> {
     print_env!(CARGO);
     print_env!(CARGO_MANIFEST_DIR);
     print_env!(CARGO_PKG_VERSION);
@@ -285,7 +298,7 @@ fn cargo(cmd: &str, args: &[String]) -> Result<(), DynError> {
         .status()?;
 
     if !status.success() {
-        Err("cargo build failed")?;
+        Err(format!("cargo {} failed", cmd))?;
     }
     Ok(())
 }

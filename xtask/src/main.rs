@@ -22,12 +22,74 @@ fn packages_list() -> Vec<String> {
     vec
 }
 
+#[derive(Clone)]
+struct PackageConf {
+    name: String,
+    dir: String,                 //relative from the workspace root
+    template_files: Vec<String>, //path relative to package dir
+    template_subs: Vec<(String, String)>,
+}
+
+impl PackageConf {
+    fn with_name(name: &str) -> Self {
+        Self {
+            name: String::from(name),
+            dir: String::from(name),
+            template_files: vec![],
+            template_subs: vec![],
+        }
+    }
+
+    fn add_template_file(&mut self, file_name: &str) {
+        self.template_files.push(String::from(file_name));
+    }
+
+    fn add_template_sub(&mut self, token: &str, value: &str) {
+        self.template_subs
+            .push((String::from(token), String::from(value)));
+    }
+}
+
+//const eg_worker_rs: Package = Package {
+//    name: "eg-worker-rs",
+//    dir: "eg-worker-rs",
+//    template_files: &["worker.ttl.in","manifest.ttl.in"],
+//    template_subs:&[("@LIB_NAME@","eg-worker-rs")],
+//};
+
+fn package_list() -> Vec<PackageConf> {
+    let wr = workspace_root();
+    let (prefix, ext) = if cfg!(windows) {
+        ("", ".dll")
+    } else if cfg!(macos) {
+        ("lib", ".dylib")
+    } else if cfg!(unix) {
+        ("lib", ".so")
+    } else {
+        panic!("Couldn't determine shared library prefix and suffix for that target");
+    };
+    let mut eg_worker_rs = PackageConf::with_name("eg-worker-rs");
+    eg_worker_rs
+        .template_files
+        .push(String::from("worker.ttl.in"));
+    eg_worker_rs
+        .template_files
+        .push(String::from("manifest.ttl.in"));
+    eg_worker_rs.template_subs.push((
+        String::from("@LIB_FILE_NAME@"),
+        format!("{}{}{}", prefix, "eg_worker_rs", ext),
+    ));
+    vec![eg_worker_rs]
+}
+
 struct Config {
     subcommand: Option<String>,
     target: Option<String>,     // target-triple
     target_dir: Option<String>, // directory for all generated artifact
     release: bool,
     packages: Vec<String>,
+    //i didn't find better place to store it
+    packages_conf: Vec<PackageConf>,
 }
 
 impl Config {
@@ -38,6 +100,7 @@ impl Config {
             target_dir: None,
             release: false,
             packages: vec![],
+            packages_conf: vec![],
         }
     }
 
@@ -98,9 +161,31 @@ impl Config {
         }
         Ok(self)
     }
+
+    fn _packages_conf(mut self) -> Result<Self, DynError> {
+        let mut packages_conf = vec![];
+        let mut eg_worker_rs = PackageConf::with_name("eg-worker-rs");
+        eg_worker_rs.add_template_file("manifest.ttl.in");
+        eg_worker_rs.add_template_sub("@LIB_FILE_NAME@", &self.lib_filename("eg-worker-rs")?);
+        packages_conf.push(eg_worker_rs);
+
+        if self.packages.is_empty() {
+            self.packages_conf = packages_conf;
+        } else {
+            for p_name in &self.packages {
+                for p in &packages_conf {
+                    if &p.name == p_name {
+                        self.packages_conf.push(p.clone());
+                    }
+                }
+            }
+        }
+        Ok(self)
+    }
+
     //build config from environment variable and passed argument
     fn from_env() -> Result<Self, DynError> {
-        Ok(Config::_new()._vars()?._args()?)
+        Ok(Config::_new()._vars()?._args()?._packages_conf()?)
     }
 
     fn build_dir(&self) -> PathBuf {
@@ -143,56 +228,6 @@ impl Config {
         dbg!([prefix, &base_name, suffix].concat());
         Ok([prefix, &base_name, suffix].concat())
     }
-}
-
-struct Package {
-    name: String,
-    dir: String,                 //relative from the workspace root
-    template_files: Vec<String>, //path relative to package dir
-    template_subs: Vec<(String, String)>,
-}
-
-impl Package {
-    fn default(name: &str) -> Self {
-        Self {
-            name: String::from(name),
-            dir: String::from(name),
-            template_files: vec![],
-            template_subs: vec![],
-        }
-    }
-}
-
-//const eg_worker_rs: Package = Package {
-//    name: "eg-worker-rs",
-//    dir: "eg-worker-rs",
-//    template_files: &["worker.ttl.in","manifest.ttl.in"],
-//    template_subs:&[("@LIB_NAME@","eg-worker-rs")],
-//};
-
-fn package_list() -> Vec<Package> {
-    let wr = workspace_root();
-    let (prefix, ext) = if cfg!(windows) {
-        ("", ".dll")
-    } else if cfg!(macos) {
-        ("lib", ".dylib")
-    } else if cfg!(unix) {
-        ("lib", ".so")
-    } else {
-        panic!("Couldn't determine shared library prefix and suffix for that target");
-    };
-    let mut eg_worker_rs = Package::default("eg-worker-rs");
-    eg_worker_rs
-        .template_files
-        .push(String::from("worker.ttl.in"));
-    eg_worker_rs
-        .template_files
-        .push(String::from("manifest.ttl.in"));
-    eg_worker_rs.template_subs.push((
-        String::from("@LIB_FILE_NAME@"),
-        format!("{}{}{}", prefix, "eg_worker_rs", ext),
-    ));
-    vec![eg_worker_rs]
 }
 
 fn main() {
@@ -262,7 +297,7 @@ fn build_templates(conf: &mut Config) -> Result<(), DynError> {
     Ok(())
 }
 
-fn build_template(project: &Package, build_dir: &Path) {
+fn build_template(project: &PackageConf, build_dir: &Path) {
     let project_dir = workspace_root().join(&project.dir);
     let out_dir = build_dir.join("lv2").join(&project.dir);
     for file in &project.template_files {

@@ -198,12 +198,16 @@ impl Config {
             .join(profile_dir)
     }
 
-    fn package_list(&self) -> Vec<String> {
-        if self.packages.is_empty() {
-            packages_list()
-        } else {
-            self.packages.clone()
-        }
+    //fn package_list(&self) -> Vec<String> {
+    //    if self.packages.is_empty() {
+    //        packages_list()
+    //    } else {
+    //        self.packages.clone()
+    //    }
+    //}
+
+    fn packages_conf(&self) -> Vec<PackageConf> {
+        self.packages_conf.clone()
     }
 
     fn lib_filename(&self, project_name: &str) -> Result<String, DynError> {
@@ -270,9 +274,9 @@ fn build(conf: &mut Config) -> Result<(), DynError> {
         cargo_args.push(String::from("--target-dir"));
         cargo_args.push(String::from(target_dir));
     }
-    for p in conf.package_list() {
+    for p in conf.packages_conf() {
         cargo_args.push(String::from("-p"));
-        cargo_args.push(p);
+        cargo_args.push(p.name);
     }
     println!("{:?}", cargo_args);
 
@@ -285,14 +289,14 @@ fn build(conf: &mut Config) -> Result<(), DynError> {
 }
 
 fn build_templates(conf: &mut Config) -> Result<(), DynError> {
-    for p in conf.package_list() {
-        let project_dir: &Path = &p.as_ref();
-        let out_dir = conf.build_dir().join("lv2").join(&project_dir);
-        let manifest_in_path = workspace_root().join(project_dir).join("manifest.ttl.in");
-        dbg!(&out_dir);
-        let manifest_out_path = out_dir.join("manifest.ttl");
-        let sub = (String::from("@LIB_NAME@"), conf.lib_filename(&p)?);
-        subs(&manifest_in_path, &manifest_out_path, &[sub])?;
+    for p in conf.packages_conf() {
+        let out_dir = conf.build_dir().join("lv2").join(&p.dir);
+        for tf in p.template_files {
+            let template_in_path = workspace_root().join(&p.dir).join(&tf);
+            dbg!(&out_dir);
+            let template_out_path = out_dir.join(Path::new(&tf).file_stem().unwrap());
+            subs(&template_in_path, &template_out_path, &p.template_subs)?;
+        }
     }
     Ok(())
 }

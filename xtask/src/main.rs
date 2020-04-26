@@ -179,7 +179,6 @@ impl Config {
         };
 
         let base_name = project_name.replace("-", "_");
-        dbg!([prefix, &base_name, suffix].concat());
         Ok([prefix, &base_name, suffix].concat())
     }
 }
@@ -228,7 +227,6 @@ fn build(conf: &mut Config) -> Result<(), DynError> {
         cargo_args.push(String::from("-p"));
         cargo_args.push(p.name);
     }
-    println!("{:?}", cargo_args);
 
     cargo("build", &cargo_args)?;
     build_templates(conf)?;
@@ -243,7 +241,6 @@ fn build_templates(conf: &mut Config) -> Result<(), DynError> {
         let out_dir = conf.build_dir().join("lv2").join(&p.dir);
         for tf in p.template_files {
             let template_in_path = workspace_root().join(&p.dir).join(&tf);
-            dbg!(&out_dir);
             let template_out_path = out_dir.join(Path::new(&tf).file_stem().unwrap());
             subs(&template_in_path, &template_out_path, &p.template_subs)?;
         }
@@ -252,8 +249,6 @@ fn build_templates(conf: &mut Config) -> Result<(), DynError> {
 }
 
 fn subs(template: &Path, output: &Path, subs: &[(String, String)]) -> Result<(), DynError> {
-    dbg!(template);
-    dbg!(output);
     fs::create_dir_all(output.parent().unwrap()).unwrap();
     let mut template = BufReader::new(File::open(template).unwrap());
     let mut output = BufWriter::new(File::create(output).unwrap());

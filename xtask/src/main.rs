@@ -12,16 +12,6 @@ use std::process::Command;
 
 type DynError = Box<dyn std::error::Error>;
 
-const PACKAGE_LIST: &[&str] = &["eg-worker-rs"];
-
-fn packages_list() -> Vec<String> {
-    let mut vec = Vec::with_capacity(PACKAGE_LIST.len());
-    for p in PACKAGE_LIST {
-        vec.push(String::from(*p));
-    }
-    vec
-}
-
 #[derive(Clone)]
 struct PackageConf {
     name: String,
@@ -48,38 +38,6 @@ impl PackageConf {
         self.template_subs
             .push((String::from(token), String::from(value)));
     }
-}
-
-//const eg_worker_rs: Package = Package {
-//    name: "eg-worker-rs",
-//    dir: "eg-worker-rs",
-//    template_files: &["worker.ttl.in","manifest.ttl.in"],
-//    template_subs:&[("@LIB_NAME@","eg-worker-rs")],
-//};
-
-fn package_list() -> Vec<PackageConf> {
-    let wr = workspace_root();
-    let (prefix, ext) = if cfg!(windows) {
-        ("", ".dll")
-    } else if cfg!(macos) {
-        ("lib", ".dylib")
-    } else if cfg!(unix) {
-        ("lib", ".so")
-    } else {
-        panic!("Couldn't determine shared library prefix and suffix for that target");
-    };
-    let mut eg_worker_rs = PackageConf::with_name("eg-worker-rs");
-    eg_worker_rs
-        .template_files
-        .push(String::from("worker.ttl.in"));
-    eg_worker_rs
-        .template_files
-        .push(String::from("manifest.ttl.in"));
-    eg_worker_rs.template_subs.push((
-        String::from("@LIB_FILE_NAME@"),
-        format!("{}{}{}", prefix, "eg_worker_rs", ext),
-    ));
-    vec![eg_worker_rs]
 }
 
 struct Config {
@@ -198,14 +156,6 @@ impl Config {
             .join(profile_dir)
     }
 
-    //fn package_list(&self) -> Vec<String> {
-    //    if self.packages.is_empty() {
-    //        packages_list()
-    //    } else {
-    //        self.packages.clone()
-    //    }
-    //}
-
     fn packages_conf(&self) -> Vec<PackageConf> {
         self.packages_conf.clone()
     }
@@ -301,17 +251,6 @@ fn build_templates(conf: &mut Config) -> Result<(), DynError> {
     Ok(())
 }
 
-fn build_template(project: &PackageConf, build_dir: &Path) {
-    let project_dir = workspace_root().join(&project.dir);
-    let out_dir = build_dir.join("lv2").join(&project.dir);
-    for file in &project.template_files {
-        let file_path = project_dir.join(&file);
-        let file_stem = AsRef::<Path>::as_ref(&file).file_stem().unwrap();
-        let out_path = out_dir.join(file_stem);
-        subs_file(file_path, out_path, &project.template_subs).unwrap();
-    }
-}
-
 fn subs(template: &Path, output: &Path, subs: &[(String, String)]) -> Result<(), DynError> {
     dbg!(template);
     dbg!(output);
@@ -325,28 +264,6 @@ fn subs(template: &Path, output: &Path, subs: &[(String, String)]) -> Result<(),
         }
         write!(output, "{}", buf).unwrap();
         buf.clear();
-    }
-    Ok(())
-}
-
-fn template_build<P, B>(project_path: P, build_path: B) -> Result<(), DynError>
-where
-    P: AsRef<Path>,
-    B: AsRef<Path>,
-{
-    let entries = fs::read_dir(&project_path)?;
-    for entry in entries {
-        let path = entry?.path();
-        if path.is_file() && path.extension() == Some("in".as_ref()) {
-            println!("{:?}", path);
-            let out_path = build_path
-                .as_ref()
-                .join("target/lv2/")
-                .join(project_path.as_ref().file_stem().unwrap())
-                .join(path.file_stem().unwrap());
-            println!("{:?}", out_path);
-            subst_file(path, &out_path, &[("@LIB_NAME@", "libeg_worker_rs.so")])?;
-        }
     }
     Ok(())
 }
@@ -399,42 +316,4 @@ fn workspace_root() -> PathBuf {
         .nth(1)
         .unwrap()
         .to_path_buf()
-}
-
-fn subs_file<T, O>(template: T, output: O, subs: &[(String, String)]) -> Result<(), DynError>
-where
-    T: AsRef<Path>,
-    O: AsRef<Path>,
-{
-    fs::create_dir_all(output.as_ref().parent().unwrap()).unwrap();
-    let mut template = BufReader::new(File::open(template).unwrap());
-    let mut output = BufWriter::new(File::create(output).unwrap());
-    let mut buf = String::new();
-    while template.read_line(&mut buf).unwrap() != 0 {
-        for (token, value) in subs {
-            buf = buf.replace(token, value);
-        }
-        write!(output, "{}", buf).unwrap();
-        buf.clear();
-    }
-    Ok(())
-}
-
-fn subst_file<T, O>(template: T, output: O, subs: &[(&str, &str)]) -> Result<(), DynError>
-where
-    T: AsRef<Path>,
-    O: AsRef<Path>,
-{
-    fs::create_dir_all(output.as_ref().parent().unwrap()).unwrap();
-    let mut template = BufReader::new(File::open(template).unwrap());
-    let mut output = BufWriter::new(File::create(output).unwrap());
-    let mut buf = String::new();
-    while template.read_line(&mut buf).unwrap() != 0 {
-        for (token, value) in subs {
-            buf = buf.replace(token, value);
-        }
-        write!(output, "{}", buf).unwrap();
-        buf.clear();
-    }
-    Ok(())
 }

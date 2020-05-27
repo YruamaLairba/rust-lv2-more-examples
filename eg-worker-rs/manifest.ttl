@@ -2,5 +2,5 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
 <urn:rust-lv2-more-examples:eg-worker-rs> a lv2:Plugin .
-<urn:rust-lv2-more-examples:eg-worker-rs> lv2:binary <libeg_worker_rs.so> .
+<urn:rust-lv2-more-examples:eg-worker-rs> lv2:binary <@LIB_FILE_NAME@> .
 <urn:rust-lv2-more-examples:eg-worker-rs> rdfs:seeAlso <worker.ttl> .

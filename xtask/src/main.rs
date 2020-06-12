@@ -20,31 +20,58 @@ struct PackageConf<'a> {
     post_build: fn(conf: &Config) -> Result<(), DynError>,
 }
 
-const PACKAGES_CONF: &[PackageConf] = &[PackageConf {
-    name: "eg-worker-rs",
-    post_build: |conf| {
-        let lib_file_name = [&conf.lib_prefix(), "eg_worker_rs", &conf.lib_suffix()].concat();
-        let subs: &[(&str, &str)] = &[("@LIB_FILE_NAME@", &lib_file_name)];
-        let src_dir = workspace_root().join("eg-worker-rs");
-        let out_dir = conf.build_dir().join("lv2").join("eg-worker-rs");
-        fs::create_dir_all(&out_dir).unwrap();
-        subst(
-            src_dir.join("manifest.ttl"),
-            out_dir.join("manifest.ttl"),
-            subs,
-        )
-        .unwrap();
-        for e in &["worker.ttl"] {
-            fs::copy(src_dir.join(e), out_dir.join(e)).unwrap();
-        }
-        fs::copy(
-            conf.build_dir().join(&lib_file_name),
-            out_dir.join(&lib_file_name),
-        )
-        .unwrap();
-        Ok(())
+const PACKAGES_CONF: &[PackageConf] = &[
+    PackageConf {
+        name: "eg-worker-rs",
+        post_build: |conf| {
+            let lib_file_name = [&conf.lib_prefix(), "eg_worker_rs", &conf.lib_suffix()].concat();
+            let subs: &[(&str, &str)] = &[("@LIB_FILE_NAME@", &lib_file_name)];
+            let src_dir = workspace_root().join("eg-worker-rs");
+            let out_dir = conf.build_dir().join("lv2").join("eg-worker-rs");
+            fs::create_dir_all(&out_dir).unwrap();
+            subst(
+                src_dir.join("manifest.ttl"),
+                out_dir.join("manifest.ttl"),
+                subs,
+            )
+            .unwrap();
+            for e in &["worker.ttl"] {
+                fs::copy(src_dir.join(e), out_dir.join(e)).unwrap();
+            }
+            fs::copy(
+                conf.build_dir().join(&lib_file_name),
+                out_dir.join(&lib_file_name),
+            )
+            .unwrap();
+            Ok(())
+        },
     },
-}];
+    PackageConf {
+        name: "eg-preset-rs",
+        post_build: |conf| {
+            let lib_file_name = [&conf.lib_prefix(), "eg_preset_rs", &conf.lib_suffix()].concat();
+            let subs: &[(&str, &str)] = &[("@LIB_FILE_NAME@", &lib_file_name)];
+            let src_dir = workspace_root().join("eg-preset-rs");
+            let out_dir = conf.build_dir().join("lv2").join("eg-preset-rs");
+            fs::create_dir_all(&out_dir).unwrap();
+            subst(
+                src_dir.join("manifest.ttl"),
+                out_dir.join("manifest.ttl"),
+                subs,
+            )
+            .unwrap();
+            for e in &["eg-preset-rs.ttl"] {
+                fs::copy(src_dir.join(e), out_dir.join(e)).unwrap();
+            }
+            fs::copy(
+                conf.build_dir().join(&lib_file_name),
+                out_dir.join(&lib_file_name),
+            )
+            .unwrap();
+            Ok(())
+        },
+    },
+];
 
 struct Config<'a> {
     subcommand: String,

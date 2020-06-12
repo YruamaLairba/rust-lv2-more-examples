@@ -24,3 +24,5 @@ impl Plugin for EgPreset {
 
     fn run(&mut self, _ports: &mut Ports, _features: &mut Self::AudioFeatures) {}
 }
+
+lv2_descriptors!(EgPreset);

@@ -119,7 +119,7 @@ impl<'a> Config<'a> {
                         continue 'proj_loop;
                     }
                 }
-                return Err(format!("No project named `{}", proj).into());
+                return Err(format!("No project named `{}`", proj).into());
             }
             tmp
         };

@@ -3,4 +3,5 @@
 members = [
     "xtask",
     "eg-worker-rs",
+    "eg-preset-rs",
 ]

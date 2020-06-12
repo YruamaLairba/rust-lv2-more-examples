@@ -1,0 +1,6 @@
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<urn:rust-lv2-more-examples:eg-preset-rs> a lv2:Plugin .
+<urn:rust-lv2-more-examples:eg-preset-rs> lv2:binary <@LIB_FILE_NAME@> .
+<urn:rust-lv2-more-examples:eg-preset-rs> rdfs:seeAlso <eg-preset-rs.ttl> .

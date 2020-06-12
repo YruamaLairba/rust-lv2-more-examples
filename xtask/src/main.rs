@@ -75,6 +75,7 @@ impl<'a> Config<'a> {
 
         let mut opts = Options::new();
         opts.optmulti("p", "project", "project to build", "NAME");
+        opts.optflag("", "all", "build all projects");
         opts.optflag("", "release", "build in release mode, with optimization");
         opts.optopt("", "target", "build for the target triple", "TRIPLE");
         opts.optopt(
@@ -106,15 +107,22 @@ impl<'a> Config<'a> {
 
         let release = matches.opt_present("release");
 
-        let mut packages_conf = Vec::<PackageConf>::new();
-        let project = matches.opt_strs("p");
-        for proj in project {
-            for pkg_conf in PACKAGES_CONF {
-                if proj == pkg_conf.name {
-                    packages_conf.push(*pkg_conf);
+        let packages_conf = if matches.opt_present("all") || !matches.opt_present("project") {
+            PACKAGES_CONF.iter().copied().collect::<Vec<PackageConf>>()
+        } else {
+            let mut tmp = Vec::<PackageConf>::new();
+            let project = matches.opt_strs("p");
+            'proj_loop: for proj in project {
+                for pkg_conf in PACKAGES_CONF {
+                    if proj == pkg_conf.name {
+                        tmp.push(*pkg_conf);
+                        continue 'proj_loop;
+                    }
                 }
+                return Err(format!("No project named `{}", proj).into());
             }
-        }
+            tmp
+        };
 
         Ok(Self {
             subcommand,

@@ -60,7 +60,7 @@ const PACKAGES_CONF: &[PackageConf] = &[
                 subs,
             )
             .unwrap();
-            for e in &["eg-preset-rs.ttl"] {
+            for e in &["eg-preset-rs.ttl", "presets.ttl"] {
                 fs::copy(src_dir.join(e), out_dir.join(e)).unwrap();
             }
             fs::copy(

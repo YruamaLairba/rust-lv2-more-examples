@@ -4,3 +4,4 @@
 <urn:rust-lv2-more-examples:eg-preset-rs> a lv2:Plugin .
 <urn:rust-lv2-more-examples:eg-preset-rs> lv2:binary <@LIB_FILE_NAME@> .
 <urn:rust-lv2-more-examples:eg-preset-rs> rdfs:seeAlso <eg-preset-rs.ttl> .
+<urn:rust-lv2-more-examples:eg-preset-rs> rdfs:seeAlso <presets.ttl> .

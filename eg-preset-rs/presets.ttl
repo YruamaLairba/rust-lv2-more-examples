@@ -1,0 +1,46 @@
+@prefix lv2: <http://lv2plug.in/ns/lv2core#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<urn:rust-lv2-more-examples:eg-preset-rs:presets:00>
+	a pset:Preset ;
+	lv2:appliesTo <urn:rust-lv2-more-examples:eg-preset-rs>;
+	rdfs:label "Default" ;
+	lv2:port [
+		lv2:symbol "param1" ;
+		pset:value +1
+	] , [
+		lv2:symbol "param2" ;
+		pset:value 0
+	] , [
+		lv2:symbol "param3" ;
+		pset:value +1
+	] .
+<urn:rust-lv2-more-examples:eg-preset-rs:presets:01>
+	a pset:Preset ;
+	lv2:appliesTo <urn:rust-lv2-more-examples:eg-preset-rs>;
+	rdfs:label "All Min" ;
+	lv2:port [
+		lv2:symbol "param1" ;
+		pset:value 0
+	] , [
+		lv2:symbol "param2" ;
+		pset:value -1
+	] , [
+		lv2:symbol "param3" ;
+		pset:value 0
+	] .
+<urn:rust-lv2-more-examples:eg-preset-rs:presets:02>
+	a pset:Preset ;
+	lv2:appliesTo <urn:rust-lv2-more-examples:eg-preset-rs>;
+	rdfs:label "All Max" ;
+	lv2:port [
+		lv2:symbol "param1" ;
+		pset:value +3
+	] , [
+		lv2:symbol "param2" ;
+		pset:value +1
+	] , [
+		lv2:symbol "param3" ;
+		pset:value +9
+	] .

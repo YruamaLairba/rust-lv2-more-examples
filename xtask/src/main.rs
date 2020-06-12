@@ -208,6 +208,9 @@ fn try_main() -> Result<(), DynError> {
 
 fn build(conf: &mut Config) -> Result<(), DynError> {
     let mut cargo_args = Vec::<String>::new();
+    if conf.release {
+        cargo_args.push(String::from("--release"));
+    }
     if conf.target != "" {
         cargo_args.push(String::from("--target"));
         cargo_args.push(conf.target.clone());

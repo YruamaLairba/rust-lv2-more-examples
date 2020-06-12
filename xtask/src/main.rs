@@ -17,22 +17,33 @@ type DynError = Box<dyn std::error::Error>;
 #[derive(Clone, Copy)]
 struct PackageConf<'a> {
     name: &'a str,
-    dir: &'a str,                            //relative from the workspace root
-    prefix_tag: &'a str,                     //tag used for prefix replacement
-    suffix_tag: &'a str,                     //tag used for suffix replacement
-    template_files: &'a [&'a str],           //path relative to package dir
-    template_subs: &'a [(&'a str, &'a str)], //additionnal tag/value
-    resources: &'a [&'a str],                //additionnal file to copy into lv2 folder
+    post_build: fn(conf: &Config) -> Result<(), DynError>,
 }
 
 const PACKAGES_CONF: &[PackageConf] = &[PackageConf {
     name: "eg-worker-rs",
-    dir: "eg-worker-rs",
-    prefix_tag: "@LIB_PREFIX@",
-    suffix_tag: "@LIB_SUFFIX@",
-    template_files: &["manifest.ttl"],
-    template_subs: &[],
-    resources: &["worker.ttl"],
+    post_build: |conf| {
+        let lib_file_name = [&conf.lib_prefix(), "eg_worker_rs", &conf.lib_suffix()].concat();
+        let subs: &[(&str, &str)] = &[("@LIB_FILE_NAME@", &lib_file_name)];
+        let src_dir = workspace_root().join("eg-worker-rs");
+        let out_dir = conf.build_dir().join("lv2").join("eg-worker-rs");
+        fs::create_dir_all(&out_dir).unwrap();
+        subst(
+            src_dir.join("manifest.ttl"),
+            out_dir.join("manifest.ttl"),
+            subs,
+        )
+        .unwrap();
+        for e in &["worker.ttl"] {
+            fs::copy(src_dir.join(e), out_dir.join(e)).unwrap();
+        }
+        fs::copy(
+            conf.build_dir().join(&lib_file_name),
+            out_dir.join(&lib_file_name),
+        )
+        .unwrap();
+        Ok(())
+    },
 }];
 
 struct Config<'a> {
@@ -202,49 +213,30 @@ fn build(conf: &mut Config) -> Result<(), DynError> {
     }
     println!("Building binarie(s)");
     cargo("build", &cargo_args)?;
-    println!("Building template(s)");
-    build_templates(conf)?;
-    println!("Copying ressource(s)");
-    build_resources(conf)?;
-
-    println!();
-
-    Ok(())
-}
-
-fn build_templates(conf: &mut Config) -> Result<(), DynError> {
+    println!("Post build step(s)");
     for p in conf.packages_conf() {
-        let out_dir = conf.build_dir().join("lv2").join(&p.dir);
-        fs::create_dir_all(&out_dir).unwrap();
-        for tf in p.template_files {
-            let in_path = workspace_root().join(&p.dir).join(&tf);
-            let out_path = out_dir.join(Path::new(&tf));
-            let mut template = BufReader::new(File::open(in_path).unwrap());
-            let mut output = BufWriter::new(File::create(out_path).unwrap());
-            let mut buf = String::new();
-            while template.read_line(&mut buf).unwrap() != 0 {
-                for (token, value) in p.template_subs {
-                    buf = buf.replace(token, value);
-                }
-                buf = buf.replace(p.prefix_tag, &conf.lib_prefix());
-                buf = buf.replace(p.suffix_tag, &conf.lib_suffix());
-                write!(output, "{}", buf).unwrap();
-                buf.clear();
-            }
-        }
+        (p.post_build)(conf)?;
     }
+    println!("Finished");
+    println!();
     Ok(())
 }
 
-fn build_resources(conf: &mut Config) -> Result<(), DynError> {
-    for p in conf.packages_conf() {
-        let out_dir = conf.build_dir().join("lv2").join(&p.dir);
-        fs::create_dir_all(&out_dir).unwrap();
-        for rs in p.resources {
-            let in_path = workspace_root().join(&p.dir).join(&rs);
-            let out_path = out_dir.join(Path::new(&rs));
-            fs::copy(in_path, out_path)?;
+//substitute tokens in a file
+fn subst<P: AsRef<Path>, Q: AsRef<Path>>(
+    in_path: P,
+    out_path: Q,
+    subs: &[(&str, &str)],
+) -> Result<(), DynError> {
+    let mut in_file = BufReader::new(File::open(in_path)?);
+    let mut out_file = BufWriter::new(File::create(out_path)?);
+    let mut buf = String::new();
+    while in_file.read_line(&mut buf).unwrap() != 0 {
+        for (token, value) in subs {
+            buf = buf.replace(token, value);
         }
+        write!(out_file, "{}", buf)?;
+        buf.clear();
     }
     Ok(())
 }

@@ -12,7 +12,7 @@
 # Associated project
         lv2:project <https://github.com/YruamaLairba/rust-lv2-more-examples> ;
 # Plugin name
-        doap:name "Example Worker (rust-lv2)" ;
+        doap:name "Preset Example (rust-lv2)" ;
         doap:license <http://opensource.org/licenses/isc> ;
 # ports description
         lv2:port [

@@ -164,12 +164,17 @@ impl<'a> Config<'a> {
     fn print_help(&self) {
         let brief = "Usage: cargo xtask SUBCOMMAND [options]";
         let mut usage = self.opts.usage(&brief);
-        let subcommand = "
-     Subcomands are:
-         build   build lv2 project(s)
+        let more_help= "
+    Subcomands are:
+        build   build lv2 project(s)
+
+    Handled environnement variable:
+        CARGO_BUILD_TARGET
+        CARGO_TARGET_DIR
+        CARGO_BUILD_TARGET_DIR
 
 ";
-        usage.push_str(&subcommand);
+        usage.push_str(&more_help);
         print!("{}", usage);
     }
 
